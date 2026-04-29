@@ -1,0 +1,11 @@
+arctic.duckdb
+*.duckdb
+__pycache__/
+*.pyc
+.env
+.env.local
+venv/
+.venv/
+.DS_Store
+*.log
+map.html
