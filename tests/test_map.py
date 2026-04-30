@@ -69,11 +69,17 @@ def test_map_data_embedded_as_valid_json(db, out):
     from map import generate
     generate(db_path=db, out_path=out)
     html = open(out).read()
-    start = html.index("const DATA = ") + len("const DATA = ")
-    end = html.index(";\n", start)
-    data = json.loads(html[start:end])
-    assert len(data) == 20
-    assert all("lat" in d and "lon" in d and "sector" in d for d in data)
+    # Data embedded as: features: [...]\n};\n
+    marker = 'features: '
+    start = html.index(marker) + len(marker)
+    end = html.index("]\n};", start) + 1
+    features = json.loads(html[start:end])
+    assert len(features) == 20
+    assert all(
+        f["geometry"]["coordinates"][1] is not None  # lat
+        and "sector" in f["properties"]
+        for f in features
+    )
 
 
 def test_map_is_idempotent(db, out):
