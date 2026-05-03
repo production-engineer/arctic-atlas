@@ -17,7 +17,7 @@ import urllib.parse
 import zipfile
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
-DATA_ROOT = os.path.join(os.path.expanduser("~"), "repos", "BeadedCloud All Arctic Locations")
+DATA_ROOT = os.path.join(REPO_ROOT, "raw_data")
 GIS_DIR = os.path.join(DATA_ROOT, "GIS FILES")
 SUPPORT_DIR = os.path.join(DATA_ROOT, "Supporting Data")
 DATA_CACHE = os.path.join(REPO_ROOT, "data_cache")

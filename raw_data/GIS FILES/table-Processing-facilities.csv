@@ -1,0 +1,32 @@
+﻿OperationGroupEN,PropertyNameEN,OperatorOwnersEN,ProvincesEN,CommoditiesEN,DevelopmentStageEN,ActivityStatusEN,Latitude,Longitude,Website,OBJECTID
+"Processing","Long Harbour","Vale S.A. ","Newfoundland and Labrador","Nickel, copper, cobalt","Refinery","Active",47.410938,-53.811792,"https://vale.com",11
+"Processing","Carol Lake","Iron Ore Company of Canada Inc.","Newfoundland and Labrador","High-purity iron ore pellets (direct reduction grade)","Pelletizing plant","Active",52.95872,-66.89277,"https://www.riotinto.com",12
+"Processing","Alouette","Rio Tinto Group. / Aluminium Austria Metall Québec Inc. / Hydro Aluminium a.s. / Société générale de financement du Québec / Marubeni Québec Inc.","Quebec","Aluminum (pure)","Smelter","Active",50.1571,-66.4429,"https://www.riotinto.com/",83
+"Processing","Port-Cartier","ArcelorMittal S.A.","Quebec","High-purity iron ore pellets (direct reduction grade)","Pelletizing plant","Active",50.03213,-66.797531,"https://northamerica.arcelormittal.com",84
+"Processing","Baie-Comeau","Alcoa Corporation","Quebec","Aluminum (pure or alloyed)","Smelter","Active",49.2562,-68.1491,"https://www.alcoa.com",85
+"Processing","Grande-Baie","Rio Tinto Group","Quebec","Aluminum (pure or alloyed)","Smelter","Active",48.3058,-70.9258,"https://www.riotinto.com/",86
+"Processing","Laterrière","Rio Tinto Group","Quebec","Aluminum (pure or alloyed)","Smelter","Active",48.3013,-71.1287,"https://www.riotinto.com/",87
+"Processing","Vaudreuil Works","Rio Tinto Group","Quebec","Alumina","Refinery","Active",48.428476,-71.157919,"https://www.riotinto.com/",88
+"Processing","Niobec Converter","Magris Performance Materials Inc.","Quebec","Ferroniobium","Ferroalloy plant","Active",48.531738,-71.158168,"https://www.magrispm.com",89
+"Processing","Arvida","Rio Tinto Group","Quebec","Aluminum (pure or alloyed), alumina, aluminum chemicals, composites","Smelter","Active",48.430174,-71.165521,"https://www.riotinto.com/",90
+"Processing","Alma","Rio Tinto Group","Quebec","Aluminum (pure or alloyed)","Smelter","Active",48.5847,-71.6897,"https://www.riotinto.com/",91
+"Processing","Deschambault","Alcoa Corporation","Quebec","Aluminum (pure)","Smelter","Active",46.6939,-71.9467,"https://www.alcoa.com",92
+"Processing","Bécancour","Alcoa Corporation","Quebec","Aluminum (pure or alloyed)","Smelter","Active",46.381,-72.3852,"https://www.alcoa.com",93
+"Processing","Bécancour Silicon","Ferroglobe PLC / DOW Corning","Quebec","Silicon metal, ferrosilicon","Ferroalloy plant","Active",46.36984,-72.38884,"https://www.ferroglobe.com/",94
+"Processing","Rio Tinto Iron and Titanium","Rio Tinto Group","Quebec","Steel, titanium dioxide, scandium","Electric arc furnace","Active",46.045907,-73.138424,"https://www.riotinto.com/",95
+"Processing","CCR","Glencore Canada Corporation","Quebec","Copper (cathodes), gold, silver, tellurium, selenium, nickel sulfate, copper sulfate, platinum group metals","Refinery","Active",45.627518,-73.511778,"https://www.glencore.ca",96
+"Processing","Montréal","5N Plus Inc.","Quebec","Tellurium, cadmium","Refinery","Active",45.49143,-73.71794,"https://www.5nplus.com",97
+"Processing","Canadian Electrolytic Zinc Limited (CEZinc)","Glencore Canada Corporation","Quebec","Zinc, cadmium, liquid sulfur dioxide, sulfuric acid","Refinery","Active",45.228312,-74.097205,"https://www.cezinc.com/en",98
+"Processing","Horne","Glencore Canada Corporation","Quebec","Copper anodes, precious metals, sulfuric acid","Smelter","Active",48.2534,-79.0151,"https://www.glencore.ca",99
+"Processing","Ottawa Plant","Masterloy Products Limited","Ontario","Ferrovanadium, ferromolybdenum","Ferroalloy plant","Active",45.298042,-75.562391,"http://www.masterloy.com",145
+"Processing","Port Hope","Cameco Corporation","Ontario","Uranium (hexafluoride, dioxide, metals, alloys)","Conversion facility","Active",43.9429,-78.2943,"https://www.cameco.com/",146
+"Processing","Neo Performance Materials ULC","Neo Performance Materials Inc.","Ontario","Gallium, indium","Secondary refinery","Active",44.276019,-78.299966,"https://www.neomaterials.com",147
+"Processing","Port Colborne","Vale S.A. ","Ontario","Electrolytic cobalt, platinum group metals (in residues)","Refinery","Active",42.883,-79.24,"https://vale.com",148
+"Processing","Mississauga","Real Alloy Canada Ltd.","Ontario","Recycled aluminum","Secondary smelter","Active",43.7058,-79.6671,"https://www.realalloy.com",149
+"Processing","Sudbury","Glencore Canada Corporation","Ontario","Nickel-copper matte containing cobalt, gold, silver, platinum group metals","Smelter, plant","Active",46.5763,-80.7993,"https://www.glencore.ca",150
+"Processing","Copper Cliff Complex ","Vale S.A. ","Ontario","Nickel (oxide sinter, pellets, powder, sulfide), copper cathodes, gold, silver, selenium cake, tellurium dioxide cake, platinum group metals (in residues), liquid sulfur dioxide, sulfuric acid","Smelter, refinery, plant","Active",46.4801,-81.0569,"https://vale.com",151
+"Processing","Blind River","Cameco Corporation","Ontario","Uranium (trioxide)","Refinery","Active",46.180896,-83.017246,"https://www.cameco.com/",152
+"Processing","The Cobalt Refinery Company Inc.","Sherritt International Corporation / General Nickel Company S.A.","Alberta","Nickel, cobalt, copper sulfide, ammonium sulfate","Refinery","Active",53.719929,-113.19011,"https://www.sherritt.com",220
+"Processing","Baymag","Baymag Inc.","Alberta","Magnesium oxide","Plant","Active",51.060022,-115.210061,"https://www.baymag.com/",221
+"Processing","Trail","Teck Resources Limited","British Columbia","Zinc, lead, bismuth, cadmium, indium, germanium, precious metals, liquid sulfur dioxide, sulfuric acid","Smelter, refinery, plant","Active",49.0999,-117.7137,"https://www.teck.com/",266
+"Processing","Kitimat","Rio Tinto Group","British Columbia","Aluminum (pure or alloyed)","Smelter","Active",53.9976,-128.6954,"https://www.riotinto.com/",267

@@ -1,0 +1,12 @@
+﻿OBJECTID,NAME,COMMUNITY,SOURCE_ENERGY_TYPE,NET_CAPACITY_V
+1,"P126 - Whitehorse Diesel","Whitehorse","Diesel",20000
+2,"P125 - Whitehorse Hydro","Whitehorse","Hydro",20000
+3,"P127 - Whitehorse #4","Whitehorse","Hydro",20000
+4,"P130 - Aishihik Hydro","Aishihik","Hydro",40000
+5,"P132 - Faro","Faro","Diesel",8200
+6,"MH0 - Mayo Hydro","Mayo","Hydro",5000
+7,"MD - Mayo Diesel","Mayo","Diesel",3000
+8,"MBH0 - Mayo B","Mayo","Hydro",10000
+9,"WG0 - Whitehorse Gas","Whitehorse","Gas",13200
+10,"P158 - Dawson","Dawson","Diesel",5300
+11,"WB0 - Whitehorse Battery","Whitehorse","Battery Storage",20000

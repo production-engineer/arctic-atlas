@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alaska Agricultural Viability — Alaska Manufacturing Association</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:opsz,wght@9..40,300..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+:root {
+  --midnight: #0a121f;
+  --tundra:   #162235;
+  --aurora:   #2bc93a;
+  --warm-white: #faf8f5;
+  --dim:      rgba(250,248,245,0.35);
+  --body:     rgba(250,248,245,0.60);
+  --lead:     rgba(250,248,245,0.88);
+  --glass:    rgba(10,18,31,0.82);
+  --border:   rgba(255,255,255,0.08);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  background: var(--midnight);
+  color: var(--warm-white);
+  height: 100vh;
+  overflow: hidden;
+}
+
+#map { position: absolute; inset: 0; }
+
+/* ── Header ─────────────────────────────────────────────── */
+#header {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 20;
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  height: 54px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 20px;
+}
+
+#header-titles { flex-shrink: 0; }
+#header-titles h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; font-weight: 600; color: var(--warm-white); line-height: 1.2; }
+#header-titles p  { font-size: 11px; color: var(--dim); }
+
+#crop-selector { display: flex; gap: 3px; margin-left: auto; flex-wrap: wrap; }
+
+.crop-btn {
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--dim);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.crop-btn:hover { background: rgba(255,255,255,0.06); color: var(--lead); }
+.crop-btn.active { background: rgba(43,201,58,0.14); border-color: rgba(43,201,58,0.45); color: var(--aurora); }
+
+.header-btn {
+  padding: 5px 13px;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.04);
+  color: var(--body);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.header-btn:hover { background: rgba(255,255,255,0.10); color: var(--lead); }
+
+/* ── Left Panel ──────────────────────────────────────────── */
+#layer-panel {
+  position: absolute;
+  top: 70px; left: 14px;
+  z-index: 10;
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  width: 192px;
+}
+
+.panel-section { margin-bottom: 14px; }
+.panel-section:last-child { margin-bottom: 0; }
+.panel-heading {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--aurora);
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  margin-bottom: 8px;
+}
+
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle {
+  width: 26px; height: 14px;
+  background: rgba(255,255,255,0.14);
+  border-radius: 7px;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.7);
+  top: 2px; left: 2px;
+  transition: transform 0.2s, background 0.2s;
+}
+.toggle.on { background: #2ecc71; }
+.toggle.on::after { transform: translateX(12px); background: #fff; }
+
+.layer-icon { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.layer-label { font-size: 12px; color: #c9d1d9; }
+
+/* Legend */
+.legend { display: flex; flex-direction: column; gap: 4px; }
+.legend-row { display: flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 22px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.legend-label { font-size: 11px; color: #7d8590; }
+
+/* ── Info Panel ──────────────────────────────────────────── */
+#info-panel {
+  position: absolute;
+  top: 70px; right: 14px;
+  z-index: 10;
+  background: rgba(10,18,31,0.96);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  width: 280px;
+  display: none;
+}
+#info-panel.visible { display: block; }
+
+#viability-chart { width: 100%; height: 200px; margin-top: 4px; }
+
+.info-close {
+  position: absolute; top: 10px; right: 12px;
+  background: none; border: none;
+  color: #7d8590; font-size: 18px;
+  cursor: pointer; line-height: 1;
+}
+.info-close:hover { color: #e6edf3; }
+
+#info-name { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; font-weight: 600; color: var(--warm-white); padding-right: 22px; line-height: 1.3; margin-bottom: 3px; }
+#info-meta { font-size: 11px; color: var(--dim); margin-bottom: 14px; }
+
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 14px; }
+.stat-box { background: rgba(22,34,53,0.8); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; }
+.stat-value { font-size: 15px; font-weight: 600; color: var(--warm-white); }
+.stat-label { font-size: 9.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+.score-section-title { font-size: 10px; font-weight: 600; color: var(--aurora); text-transform: uppercase; letter-spacing: 0.10em; margin-bottom: 4px; }
+
+/* ── Loading ─────────────────────────────────────────────── */
+#loading {
+  position: absolute; inset: 0;
+  background: var(--midnight);
+  z-index: 100;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px;
+}
+.spinner {
+  width: 28px; height: 28px;
+  border: 2px solid rgba(255,255,255,0.08);
+  border-top-color: var(--aurora);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading p { font-size: 12px; color: #7d8590; }
+
+/* MapLibre attribution */
+.maplibregl-ctrl-attrib { font-size: 9px !important; }
+.maplibregl-ctrl-bottom-right { bottom: 6px !important; right: 6px !important; }
+
+/* Hover tooltip */
+.map-tooltip {
+  background: rgba(13,17,23,0.92);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #e6edf3;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+@media (max-width: 700px) {
+  #layer-panel { display: none; }
+  #crop-selector { display: none; }
+  #info-panel { width: calc(100vw - 28px); right: 14px; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Loading Alaska agricultural data…</p>
+</div>
+
+<div id="map"></div>
+
+<!-- ── Header ─────────────────────── -->
+<div id="header">
+  <div id="header-titles">
+    <h1>Alaska Agricultural Viability</h1>
+    <p>Alaska Manufacturing Association · 2025</p>
+  </div>
+
+  <div id="crop-selector">
+    <button class="crop-btn active" data-crop="overall">Overall</button>
+    <button class="crop-btn" data-crop="grains">Grains</button>
+    <button class="crop-btn" data-crop="vegetables">Vegetables</button>
+    <button class="crop-btn" data-crop="livestock">Livestock</button>
+    <button class="crop-btn" data-crop="mariculture">Mariculture</button>
+    <button class="crop-btn" data-crop="greenhouse">Greenhouse</button>
+  </div>
+
+  <button id="csv-btn" class="header-btn">⬇ CSV</button>
+  <button id="export-btn" class="header-btn">⬇ PNG</button>
+</div>
+
+<!-- ── Layer Panel ────────────────── -->
+<div id="layer-panel">
+  <div class="panel-section">
+    <div class="panel-heading">Overlay Layers</div>
+
+    <div class="layer-row" data-layer="markets">
+      <div class="toggle on"></div>
+      <div class="layer-icon" style="background:#f39c12;"></div>
+      <div class="layer-label">Market Centers</div>
+    </div>
+
+    <div class="layer-row" data-layer="processing">
+      <div class="toggle on"></div>
+      <div class="layer-icon" style="background:#3498db;"></div>
+      <div class="layer-label">Processing Plants</div>
+    </div>
+
+    <div class="layer-row" data-layer="airports">
+      <div class="toggle on"></div>
+      <div class="layer-icon" style="background:#9b59b6;"></div>
+      <div class="layer-label">Airports</div>
+    </div>
+
+    <div class="layer-row" data-layer="roads">
+      <div class="toggle on"></div>
+      <div class="layer-icon" style="background:#e67e22; border-radius: 2px;"></div>
+      <div class="layer-label">Roads &amp; Ports</div>
+    </div>
+
+    <div class="layer-row" data-layer="labor">
+      <div class="toggle on"></div>
+      <div class="layer-icon" style="background:#1abc9c;"></div>
+      <div class="layer-label">Labor Pool</div>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-heading">Viability Scale</div>
+    <div class="legend">
+      <div class="legend-row"><div class="legend-swatch" style="background:#1a9e55;"></div><div class="legend-label">Excellent (5)</div></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#27ae60;"></div><div class="legend-label">Good (4)</div></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#f1c40f;"></div><div class="legend-label">Viable (3)</div></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#e67e22;"></div><div class="legend-label">Marginal (2)</div></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#c0392b;"></div><div class="legend-label">Poor (1)</div></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#2c3e50;"></div><div class="legend-label">Not Viable (0)</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Info Panel ────────────────── -->
+<div id="info-panel">
+  <button class="info-close" onclick="closeInfo()">×</button>
+  <div id="info-name"></div>
+  <div id="info-meta"></div>
+  <div class="stat-grid">
+    <div class="stat-box">
+      <div class="stat-value" id="stat-gdd">—</div>
+      <div class="stat-label">Grow. Degree Days</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-pop">—</div>
+      <div class="stat-label">Population</div>
+    </div>
+  </div>
+  <div class="score-section-title">Viability by Crop Type</div>
+  <div id="viability-chart"></div>
+</div>
+
+<script>
+// ── Borough viability data ─────────────────────────────────────────────────
+// Keys = FIPS (STATE + COUNTY).  Scores 0–5: 5=excellent, 0=not viable.
+// Sources: USDA NASS AK Agricultural Statistics, UAF Cooperative Extension,
+//   NOAA climate normals (GDD base 50°F), ACS 2022 5-yr population estimates.
+const BOROUGH = {
+  '02013': { name:'Aleutians East',           gdd:400,  pop:3302,    grains:1, vegetables:2, livestock:1, mariculture:4, greenhouse:2 },
+  '02016': { name:'Aleutians West',            gdd:350,  pop:5750,    grains:1, vegetables:2, livestock:1, mariculture:3, greenhouse:1 },
+  '02020': { name:'Anchorage',                 gdd:860,  pop:291538,  grains:1, vegetables:3, livestock:1, mariculture:2, greenhouse:5 },
+  '02050': { name:'Bethel',                    gdd:490,  pop:17013,   grains:1, vegetables:2, livestock:1, mariculture:3, greenhouse:2 },
+  '02060': { name:'Bristol Bay',               gdd:450,  pop:999,     grains:1, vegetables:2, livestock:2, mariculture:5, greenhouse:2 },
+  '02063': { name:'Chugach',                   gdd:640,  pop:6875,    grains:1, vegetables:2, livestock:2, mariculture:4, greenhouse:2 },
+  '02066': { name:'Copper River',              gdd:590,  pop:2701,    grains:1, vegetables:2, livestock:2, mariculture:1, greenhouse:2 },
+  '02068': { name:'Denali',                    gdd:700,  pop:2232,    grains:2, vegetables:3, livestock:2, mariculture:0, greenhouse:2 },
+  '02070': { name:'Dillingham',                gdd:450,  pop:4916,    grains:1, vegetables:2, livestock:2, mariculture:4, greenhouse:2 },
+  '02090': { name:'Fairbanks North Star',      gdd:820,  pop:97581,   grains:3, vegetables:4, livestock:2, mariculture:0, greenhouse:3 },
+  '02100': { name:'Haines',                    gdd:900,  pop:2530,    grains:2, vegetables:3, livestock:2, mariculture:3, greenhouse:3 },
+  '02105': { name:'Hoonah-Angoon',             gdd:850,  pop:2148,    grains:1, vegetables:2, livestock:1, mariculture:4, greenhouse:2 },
+  '02110': { name:'Juneau',                    gdd:1000, pop:32255,   grains:2, vegetables:3, livestock:2, mariculture:4, greenhouse:3 },
+  '02122': { name:'Kenai Peninsula',           gdd:800,  pop:58708,   grains:2, vegetables:4, livestock:3, mariculture:5, greenhouse:3 },
+  '02130': { name:'Ketchikan Gateway',         gdd:1100, pop:13901,   grains:1, vegetables:3, livestock:2, mariculture:4, greenhouse:3 },
+  '02150': { name:'Kodiak Island',             gdd:760,  pop:13592,   grains:1, vegetables:3, livestock:3, mariculture:5, greenhouse:3 },
+  '02158': { name:'Kusilvak',                  gdd:450,  pop:8314,    grains:1, vegetables:2, livestock:1, mariculture:3, greenhouse:1 },
+  '02164': { name:'Lake and Peninsula',        gdd:410,  pop:1592,    grains:1, vegetables:2, livestock:2, mariculture:4, greenhouse:1 },
+  '02170': { name:'Matanuska-Susitna',         gdd:1060, pop:108317,  grains:4, vegetables:5, livestock:4, mariculture:1, greenhouse:4 },
+  '02180': { name:'Nome',                      gdd:390,  pop:10014,   grains:1, vegetables:2, livestock:1, mariculture:2, greenhouse:2 },
+  '02185': { name:'North Slope',               gdd:100,  pop:11031,   grains:0, vegetables:1, livestock:0, mariculture:1, greenhouse:1 },
+  '02188': { name:'Northwest Arctic',          gdd:300,  pop:7793,    grains:0, vegetables:1, livestock:0, mariculture:2, greenhouse:1 },
+  '02195': { name:'Petersburg',                gdd:890,  pop:3266,    grains:2, vegetables:3, livestock:2, mariculture:4, greenhouse:3 },
+  '02198': { name:'Prince of Wales-Hyder',     gdd:990,  pop:6203,    grains:1, vegetables:3, livestock:2, mariculture:4, greenhouse:3 },
+  '02220': { name:'Sitka',                     gdd:950,  pop:8588,    grains:1, vegetables:3, livestock:2, mariculture:4, greenhouse:3 },
+  '02230': { name:'Skagway',                   gdd:700,  pop:1183,    grains:1, vegetables:2, livestock:1, mariculture:2, greenhouse:2 },
+  '02240': { name:'Southeast Fairbanks',       gdd:660,  pop:6893,    grains:3, vegetables:3, livestock:2, mariculture:0, greenhouse:2 },
+  '02275': { name:'Wrangell',                  gdd:940,  pop:2127,    grains:1, vegetables:3, livestock:2, mariculture:4, greenhouse:3 },
+  '02282': { name:'Yakutat',                   gdd:800,  pop:604,     grains:1, vegetables:2, livestock:1, mariculture:3, greenhouse:2 },
+  '02290': { name:'Yukon-Koyukuk',             gdd:610,  pop:5230,    grains:1, vegetables:2, livestock:1, mariculture:0, greenhouse:2 },
+};
+
+const CROPS = ['grains','vegetables','livestock','mariculture','greenhouse'];
+const CROP_LABELS = { grains:'Grains', vegetables:'Vegetables', livestock:'Livestock', mariculture:'Mariculture', greenhouse:'Greenhouse', overall:'Overall' };
+
+// Pre-compute overall score (avg of all 5 crops)
+for (const b of Object.values(BOROUGH)) {
+  b.overall = parseFloat((CROPS.reduce((s,c) => s + b[c], 0) / CROPS.length).toFixed(1));
+}
+
+function scoreColor(s) {
+  if (s >= 4.5) return '#1a9e55';
+  if (s >= 3.5) return '#27ae60';
+  if (s >= 2.5) return '#f1c40f';
+  if (s >= 1.5) return '#e67e22';
+  if (s >= 0.5) return '#c0392b';
+  return '#2c3e50';
+}
+
+function scoreLabel(s) {
+  if (s >= 4.5) return 'Excellent';
+  if (s >= 3.5) return 'Good';
+  if (s >= 2.5) return 'Viable';
+  if (s >= 1.5) return 'Marginal';
+  if (s >= 0.5) return 'Poor';
+  return 'Not viable';
+}
+
+function fmt(n) {
+  return n >= 1000 ? (n / 1000).toFixed(0) + 'k' : String(n);
+}
+
+// ── Build MapLibre fill-color match expression ─────────────────────────────
+function fillColorExpr(crop) {
+  const expr = ['match', ['get', 'fips']];
+  for (const [fips, b] of Object.entries(BOROUGH)) {
+    expr.push(fips, scoreColor(b[crop]));
+  }
+  expr.push('#1a2535'); // fallback
+  return expr;
+}
+
+// ── Rough centroid from GeoJSON geometry ───────────────────────────────────
+function roughCentroid(geom) {
+  let ring;
+  if (geom.type === 'Polygon') {
+    ring = geom.coordinates[0];
+  } else {
+    // MultiPolygon: use the largest ring
+    let best = 0;
+    for (const poly of geom.coordinates) {
+      if (poly[0].length > best) { best = poly[0].length; ring = poly[0]; }
+    }
+  }
+  if (!ring || !ring.length) return [0, 0];
+  const n = ring.length;
+  return [
+    ring.reduce((s, c) => s + c[0], 0) / n,
+    ring.reduce((s, c) => s + c[1], 0) / n,
+  ];
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let currentCrop = 'overall';
+let map, popup;
+const layerVisible = { markets: true, processing: true, airports: true, roads: true, labor: true };
+
+// ── Map init ───────────────────────────────────────────────────────────────
+map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  center: [-153, 64],
+  zoom: 3.8,
+  minZoom: 2,
+  maxZoom: 14,
+  attributionControl: false,
+});
+
+map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+
+// Tooltip popup (no close button, follows cursor)
+popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
+
+map.on('load', async () => {
+  try {
+    const [boroughsRaw, markets, plants, airports, transport] = await Promise.all([
+      fetch('data/boroughs.geojson').then(r => r.json()),
+      fetch('data/market-centers.geojson').then(r => r.json()),
+      fetch('data/processing-plants.geojson').then(r => r.json()),
+      fetch('data/airports.geojson').then(r => r.json()),
+      fetch('data/transportation.geojson').then(r => r.json()),
+    ]);
+
+    // ── Enrich borough features with viability + fips ──────────────────────
+    const boroughs = {
+      ...boroughsRaw,
+      features: boroughsRaw.features.map((f, i) => {
+        const fips = f.properties.STATE + f.properties.COUNTY;
+        const b = BOROUGH[fips] || {};
+        return {
+          ...f,
+          id: i,  // required for setFeatureState hover
+          properties: {
+            ...f.properties,
+            fips,
+            ...b,
+          }
+        };
+      })
+    };
+
+    // Labor pool circles (centroids from borough polygons)
+    const laborFeatures = boroughs.features
+      .filter(f => BOROUGH[f.properties.fips])
+      .map(f => {
+        const [lon, lat] = roughCentroid(f.geometry);
+        const b = BOROUGH[f.properties.fips];
+        return {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [lon, lat] },
+          properties: { name: b.name, fips: f.properties.fips, pop: b.pop }
+        };
+      });
+    const laborGeo = { type: 'FeatureCollection', features: laborFeatures };
+
+    // Split transportation into lines vs points
+    const roadFeatures    = transport.features.filter(f => f.geometry.type === 'LineString');
+    const portFeatures    = transport.features.filter(f => f.properties.type === 'port');
+    const roadGeo  = { type: 'FeatureCollection', features: roadFeatures };
+    const portGeo  = { type: 'FeatureCollection', features: portFeatures };
+
+    // ── Add sources ────────────────────────────────────────────────────────
+    map.addSource('boroughs', { type: 'geojson', data: boroughs });
+    map.addSource('markets',  { type: 'geojson', data: markets });
+    map.addSource('plants',   { type: 'geojson', data: plants });
+    map.addSource('airports', { type: 'geojson', data: airports });
+    map.addSource('roads',    { type: 'geojson', data: roadGeo });
+    map.addSource('ports',    { type: 'geojson', data: portGeo });
+    map.addSource('labor',    { type: 'geojson', data: laborGeo });
+
+    // ── Borough fills ──────────────────────────────────────────────────────
+    map.addLayer({
+      id: 'boroughs-fill',
+      type: 'fill',
+      source: 'boroughs',
+      paint: {
+        'fill-color': fillColorExpr(currentCrop),
+        'fill-opacity': 0.62,
+      }
+    });
+
+    map.addLayer({
+      id: 'boroughs-stroke',
+      type: 'line',
+      source: 'boroughs',
+      paint: {
+        'line-color': 'rgba(255,255,255,0.18)',
+        'line-width': 0.7,
+      }
+    });
+
+    map.addLayer({
+      id: 'boroughs-hover',
+      type: 'fill',
+      source: 'boroughs',
+      paint: {
+        'fill-color': 'rgba(255,255,255,0.10)',
+        'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 1, 0],
+      }
+    });
+
+    // ── Roads ──────────────────────────────────────────────────────────────
+    map.addLayer({
+      id: 'roads-layer',
+      type: 'line',
+      source: 'roads',
+      paint: {
+        'line-color': '#e67e22',
+        'line-width': 1.5,
+        'line-opacity': 0.55,
+        'line-dasharray': [4, 3],
+      }
+    });
+
+    // ── Ports ──────────────────────────────────────────────────────────────
+    map.addLayer({
+      id: 'ports-layer',
+      type: 'circle',
+      source: 'ports',
+      paint: {
+        'circle-radius': 5,
+        'circle-color': '#e67e22',
+        'circle-stroke-color': 'rgba(255,255,255,0.4)',
+        'circle-stroke-width': 1.5,
+        'circle-opacity': 0.85,
+      }
+    });
+
+    // ── Airports ───────────────────────────────────────────────────────────
+    map.addLayer({
+      id: 'airports-layer',
+      type: 'circle',
+      source: 'airports',
+      paint: {
+        'circle-radius': 2.5,
+        'circle-color': '#9b59b6',
+        'circle-opacity': 0.75,
+        'circle-stroke-color': 'rgba(255,255,255,0.25)',
+        'circle-stroke-width': 0.5,
+      }
+    });
+
+    // ── Processing plants ──────────────────────────────────────────────────
+    map.addLayer({
+      id: 'plants-layer',
+      type: 'circle',
+      source: 'plants',
+      paint: {
+        'circle-radius': [
+          'match', ['get', 'capacity'],
+          'Large', 8, 'Medium', 6, 4
+        ],
+        'circle-color': [
+          'match', ['get', 'type'],
+          'Fish Processing', '#3498db',
+          'Cold Storage',    '#2980b9',
+          'Meat Processing', '#e74c3c',
+          'Dairy Processing','#1abc9c',
+          '#3498db'
+        ],
+        'circle-stroke-color': 'rgba(255,255,255,0.35)',
+        'circle-stroke-width': 1.5,
+        'circle-opacity': 0.90,
+      }
+    });
+
+    // ── Labor circles (proportional by population) ─────────────────────────
+    map.addLayer({
+      id: 'labor-layer',
+      type: 'circle',
+      source: 'labor',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['get', 'pop'],
+          500, 4, 5000, 6, 30000, 10, 100000, 16, 291538, 22
+        ],
+        'circle-color': '#1abc9c',
+        'circle-opacity': 0.22,
+        'circle-stroke-color': '#1abc9c',
+        'circle-stroke-width': 1,
+        'circle-stroke-opacity': 0.5,
+      }
+    });
+
+    // ── Market centers ─────────────────────────────────────────────────────
+    map.addLayer({
+      id: 'markets-layer',
+      type: 'circle',
+      source: 'markets',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['get', 'population'],
+          3000, 6, 10000, 9, 50000, 13, 291538, 20
+        ],
+        'circle-color': '#f39c12',
+        'circle-opacity': 0.75,
+        'circle-stroke-color': 'rgba(255,255,255,0.35)',
+        'circle-stroke-width': 1.5,
+      }
+    });
+
+    // ── Market labels ──────────────────────────────────────────────────────
+    map.addLayer({
+      id: 'markets-labels',
+      type: 'symbol',
+      source: 'markets',
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-font': ['Noto Sans Regular'],
+        'text-size': 11,
+        'text-offset': [0, 1.5],
+        'text-anchor': 'top',
+      },
+      paint: {
+        'text-color': '#f39c12',
+        'text-halo-color': 'rgba(13,17,23,0.9)',
+        'text-halo-width': 1.5,
+      }
+    });
+
+    document.getElementById('loading').style.display = 'none';
+
+    // ── Hover ──────────────────────────────────────────────────────────────
+    let hoveredId = null;
+
+    map.on('mousemove', 'boroughs-fill', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      const feat = e.features[0];
+      if (!feat) return;
+
+      if (hoveredId !== null) {
+        map.setFeatureState({ source: 'boroughs', id: hoveredId }, { hover: false });
+      }
+      hoveredId = feat.id;
+      map.setFeatureState({ source: 'boroughs', id: hoveredId }, { hover: true });
+
+      const fips = feat.properties.fips;
+      const b = BOROUGH[fips];
+      if (!b) return;
+
+      const score = b[currentCrop];
+      popup.setLngLat(e.lngLat)
+        .setHTML(`
+          <div style="font-weight:600;font-size:13px;margin-bottom:3px;">${b.name}</div>
+          <div style="font-size:11px;color:#7d8590;">${CROP_LABELS[currentCrop]}: <span style="color:${scoreColor(score)};font-weight:600;">${scoreLabel(score)}</span> (${score})</div>
+        `)
+        .addTo(map);
+    });
+
+    map.on('mouseleave', 'boroughs-fill', () => {
+      map.getCanvas().style.cursor = '';
+      if (hoveredId !== null) {
+        map.setFeatureState({ source: 'boroughs', id: hoveredId }, { hover: false });
+        hoveredId = null;
+      }
+      popup.remove();
+    });
+
+    // Hover on processing plants
+    map.on('mouseenter', 'plants-layer', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      const p = e.features[0].properties;
+      popup.setLngLat(e.lngLat)
+        .setHTML(`<strong>${p.name}</strong><br><span style="color:#7d8590;font-size:11px;">${p.type} · ${p.capacity}</span>`)
+        .addTo(map);
+    });
+    map.on('mouseleave', 'plants-layer', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+
+    // Hover on market centers
+    map.on('mouseenter', 'markets-layer', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      const p = e.features[0].properties;
+      popup.setLngLat(e.lngLat)
+        .setHTML(`<strong>${p.name}</strong><br><span style="color:#7d8590;font-size:11px;">Pop. ${p.population.toLocaleString()} · ${p.role}</span>`)
+        .addTo(map);
+    });
+    map.on('mouseleave', 'markets-layer', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+
+    // Hover on ports
+    map.on('mouseenter', 'ports-layer', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      popup.setLngLat(e.lngLat)
+        .setHTML(`<strong>${e.features[0].properties.name}</strong>`)
+        .addTo(map);
+    });
+    map.on('mouseleave', 'ports-layer', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+
+    // ── Click borough → info panel ─────────────────────────────────────────
+    map.on('click', 'boroughs-fill', e => {
+      const fips = e.features[0].properties.fips;
+      showInfo(fips);
+    });
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('loading').innerHTML =
+      `<p style="color:#e74c3c;">Failed to load data.<br>Serve this folder over HTTP (not file://).</p>`;
+  }
+});
+
+// ── Info panel + ECharts radar ─────────────────────────────────────────────
+let _chart = null;
+
+function showInfo(fips) {
+  const b = BOROUGH[fips];
+  if (!b) return;
+
+  document.getElementById('info-name').textContent = b.name;
+  document.getElementById('info-meta').textContent =
+    `FIPS ${fips} · Sources: UAF CES, USDA NASS, NOAA`;
+  document.getElementById('stat-gdd').textContent = b.gdd.toLocaleString();
+  document.getElementById('stat-pop').textContent = b.pop.toLocaleString();
+
+  document.getElementById('info-panel').classList.add('visible');
+
+  const el = document.getElementById('viability-chart');
+  if (!_chart) _chart = echarts.init(el, null, { renderer: 'svg' });
+
+  _chart.setOption({
+    backgroundColor: 'transparent',
+    radar: {
+      indicator: CROPS.map(c => ({ name: CROP_LABELS[c], max: 5 })),
+      radius: '68%',
+      axisName: { color: 'rgba(250,248,245,0.55)', fontSize: 11, fontFamily: 'DM Sans' },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.07)' } },
+      splitArea: { show: false },
+      axisLine:  { lineStyle: { color: 'rgba(255,255,255,0.07)' } },
+    },
+    series: [{
+      type: 'radar',
+      data: [{ value: CROPS.map(c => b[c]), name: b.name }],
+      itemStyle:  { color: '#2bc93a' },
+      lineStyle:  { color: '#2bc93a', width: 1.5 },
+      areaStyle:  { color: 'rgba(43,201,58,0.18)' },
+      symbol: 'circle', symbolSize: 4,
+    }],
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(10,18,31,0.92)',
+      borderColor: 'rgba(255,255,255,0.08)',
+      textStyle: { color: '#faf8f5', fontSize: 11, fontFamily: 'DM Sans' },
+      formatter: p => CROPS.map((c,i) =>
+        `${CROP_LABELS[c]}: <b>${p.value[i]}/5</b> — ${scoreLabel(p.value[i])}`
+      ).join('<br>'),
+    },
+  }, true);
+}
+
+function closeInfo() {
+  document.getElementById('info-panel').classList.remove('visible');
+}
+
+// ── CSV download ────────────────────────────────────────────────────────────
+function downloadCSV() {
+  const headers = ['FIPS','Borough','GDD_base50F','Population','Grains','Vegetables','Livestock','Mariculture','Greenhouse','Overall_avg'];
+  const rows = Object.entries(BOROUGH).map(([fips, b]) =>
+    [fips, `"${b.name}"`, b.gdd, b.pop, b.grains, b.vegetables, b.livestock, b.mariculture, b.greenhouse, b.overall]
+  );
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
+    + '\n\n"Sources: UAF Cooperative Extension / USDA NASS Alaska / NOAA Climate Normals (GDD base 50F) / ACS 2022 5-yr population estimates"\n'
+    + '"Viability scores 0-5: 0=not viable, 5=excellent. Synthesized from published literature; data_quality=Low."';
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+    download: 'alaska-ag-viability.csv',
+  });
+  a.click();
+}
+
+// ── Crop selector ──────────────────────────────────────────────────────────
+document.querySelectorAll('.crop-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.crop-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCrop = btn.dataset.crop;
+    if (map.getLayer('boroughs-fill')) {
+      map.setPaintProperty('boroughs-fill', 'fill-color', fillColorExpr(currentCrop));
+    }
+  });
+});
+
+// ── Layer toggles ──────────────────────────────────────────────────────────
+const LAYER_MAP = {
+  markets:    ['markets-layer','markets-labels'],
+  processing: ['plants-layer'],
+  airports:   ['airports-layer'],
+  roads:      ['roads-layer','ports-layer'],
+  labor:      ['labor-layer'],
+};
+
+document.querySelectorAll('.layer-row[data-layer]').forEach(row => {
+  const key = row.dataset.layer;
+  const toggle = row.querySelector('.toggle');
+
+  row.addEventListener('click', () => {
+    layerVisible[key] = !layerVisible[key];
+    toggle.classList.toggle('on', layerVisible[key]);
+
+    const vis = layerVisible[key] ? 'visible' : 'none';
+    for (const id of (LAYER_MAP[key] || [])) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+    }
+  });
+});
+
+// ── Export / CSV ───────────────────────────────────────────────────────────
+document.getElementById('csv-btn').addEventListener('click', downloadCSV);
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  map.once('render', () => {
+    const canvas = map.getCanvas();
+    const link = document.createElement('a');
+    link.download = `alaska-ag-viability-${currentCrop}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+  map.triggerRepaint();
+});
+
+// MapLibre popup dark styling injected after DOM ready
+const styleTag = document.createElement('style');
+styleTag.textContent = `
+  .maplibregl-popup-content {
+    background: rgba(10,18,31,0.96) !important;
+    color: #e6edf3 !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+    border-radius: 8px !important;
+    padding: 9px 13px !important;
+    font-size: 12px !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6) !important;
+    font-family: -apple-system,'Segoe UI',sans-serif !important;
+  }
+  .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: rgba(10,18,31,0.96) !important; }
+  .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: rgba(10,18,31,0.96) !important; }
+  .maplibregl-ctrl-group { background: rgba(13,17,23,0.90) !important; border: 1px solid rgba(255,255,255,0.07) !important; border-radius: 8px !important; }
+  .maplibregl-ctrl-group button { background-color: transparent !important; }
+  .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1) opacity(0.6); }
+  .maplibregl-ctrl-attrib { background: transparent !important; color: #555 !important; }
+  .maplibregl-ctrl-attrib a { color: #666 !important; }
+`;
+document.head.appendChild(styleTag);
+</script>
+</body>
+</html>
