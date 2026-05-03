@@ -1,4 +1,5 @@
 arctic.duckdb
+data_cache/
 *.duckdb
 __pycache__/
 *.pyc

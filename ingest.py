@@ -12,12 +12,20 @@ import uuid
 import duckdb
 import pandas as pd
 
+import urllib.request
+import urllib.parse
+import zipfile
+
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_ROOT = os.path.join(os.path.expanduser("~"), "repos", "BeadedCloud All Arctic Locations")
 GIS_DIR = os.path.join(DATA_ROOT, "GIS FILES")
 SUPPORT_DIR = os.path.join(DATA_ROOT, "Supporting Data")
+DATA_CACHE = os.path.join(REPO_ROOT, "data_cache")
 
 DEFAULT_DB = os.path.join(REPO_ROOT, "arctic.duckdb")
+
+ARDF_CACHE = os.path.join(DATA_CACHE, "ardf_alaska.json")
+CGNDB_CACHE = os.path.join(DATA_CACHE, "cgndb_territories.csv")
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sites (
@@ -217,6 +225,56 @@ def ingest_nrcan_csv(path: str, data_source: str, asset_type: str) -> pd.DataFra
     })
 
 
+def ingest_ak_ag_viability(path: str) -> pd.DataFrame:
+    """
+    Alaska borough agricultural viability dataset.
+    Centroids derived from US Census TIGERweb borough polygons.
+    Viability scores (0-5) synthesized from UAF Cooperative Extension publications
+    and USDA NASS Alaska Agricultural Statistics; GDD from NOAA climate normals
+    (base 50°F seasonal accumulation); population from ACS 2022 5-year estimates.
+    data_quality=Low reflects the synthesized scoring methodology.
+    """
+    df = pd.read_csv(path, encoding="utf-8-sig", dtype={"fips": str})
+    df = sanitize_strings(df)
+    df, dropped = validate_and_clean(df, lat_col="centroid_lat", lon_col="centroid_lon")
+    if dropped:
+        print(f"  ak_ag_viability: dropped {dropped} rows with invalid coordinates")
+
+    attrs_cols = {
+        "gdd": "gdd_base50f", "population": "population",
+        "score_grains": "score_grains", "score_vegetables": "score_vegetables",
+        "score_livestock": "score_livestock", "score_mariculture": "score_mariculture",
+        "score_greenhouse": "score_greenhouse",
+    }
+
+    return pd.DataFrame({
+        "id": _uuids(len(df)),
+        "lat": df["centroid_lat"].astype(float),
+        "lon": df["centroid_lon"].astype(float),
+        "centroid_lat": df["centroid_lat"].astype(float),
+        "centroid_lon": df["centroid_lon"].astype(float),
+        "location_name": df["name"].fillna("").astype(str),
+        "country": "US",
+        "state_province": "AK",
+        "sector": "Agriculture",
+        "asset_type": "agricultural zone",
+        "ownership_type": "Public",
+        "operator_owner": "State of Alaska",
+        "data_source": "AK_AG_VIABILITY",
+        "source_id": df["fips"].astype(str),
+        "source_url": (
+            "Derived: US Census TIGERweb borough centroids "
+            "(https://tigerweb.geo.census.gov/), UAF Cooperative Extension "
+            "(https://www.uaf.edu/ces/), USDA NASS Alaska "
+            "(https://www.nass.usda.gov/Statistics_by_State/Alaska/), "
+            "NOAA climate normals (https://www.ncei.noaa.gov/products/land-based-station/us-climate-normals)"
+        ),
+        "data_quality": "Low",
+        "year_of_data": 2025,
+        "attributes": _attrs(df, attrs_cols),
+    })
+
+
 def ingest_energy_layers(path: str) -> pd.DataFrame:
     df = pd.read_csv(path, encoding="utf-8-sig")
     df = sanitize_strings(df)
@@ -249,6 +307,151 @@ def ingest_energy_layers(path: str) -> pd.DataFrame:
     })
 
 
+def ingest_ardf(path: str) -> pd.DataFrame:
+    """USGS Alaska Resource Data File — mineral sites across Alaska.
+
+    Downloads from the USGS ArcGIS REST API and caches to path.
+    Source: https://mrdata.usgs.gov/ardf/
+    """
+    os.makedirs(DATA_CACHE, exist_ok=True)
+    if not os.path.exists(path):
+        print("  Downloading ARDF from USGS ArcGIS REST API...")
+        base = (
+            "https://services.arcgis.com/v01gqwM5QqNysAAi"
+            "/ArcGIS/rest/services/ARDF_features/FeatureServer/0/query"
+        )
+        count_params = urllib.parse.urlencode({"where": "1=1", "returnCountOnly": "true", "f": "json"})
+        with urllib.request.urlopen(f"{base}?{count_params}") as r:
+            total = json.loads(r.read())["count"]
+        print(f"  ARDF: {total} records to fetch...")
+        all_features = []
+        for offset in range(0, total, 1000):
+            params = urllib.parse.urlencode({
+                "where": "1=1", "outFields": "*",
+                "resultOffset": offset, "resultRecordCount": 1000, "f": "json",
+            })
+            with urllib.request.urlopen(f"{base}?{params}") as r:
+                data = json.loads(r.read())
+            all_features.extend(data.get("features", []))
+        with open(path, "w") as f:
+            json.dump(all_features, f)
+        print(f"SHA256 ardf_alaska.json: {sha256_file(path)}")
+
+    with open(path) as f:
+        features = json.load(f)
+
+    rows = []
+    dropped = 0
+    for feat in features:
+        a = feat.get("attributes", {})
+        lat = a.get("Latitude")
+        lon = a.get("Longitude")
+        if lat is None or lon is None:
+            dropped += 1
+            continue
+        rows.append({
+            "id":            str(uuid.uuid4()),
+            "lat":           float(lat),
+            "lon":           float(lon),
+            "centroid_lat":  float(lat),
+            "centroid_lon":  float(lon),
+            "location_name": str(a.get("Site", "") or ""),
+            "country":       "US",
+            "state_province":"AK",
+            "sector":        "Mining",
+            "asset_type":    str(a.get("Site_type", "mineral site") or "mineral site").lower(),
+            "ownership_type":"Private",
+            "operator_owner":"",
+            "data_source":   "USGS_ARDF",
+            "source_id":     str(a.get("ARDF_no", a.get("OBJECTID", ""))),
+            "source_url":    "https://mrdata.usgs.gov/ardf/",
+            "data_quality":  "High",
+            "year_of_data":  2024,
+            "attributes":    json.dumps({
+                "site_status":       str(a.get("Site_status", "") or ""),
+                "commodities_main":  str(a.get("Commodities_main", "") or ""),
+                "commodities_other": str(a.get("Commodities_other", "") or ""),
+                "district":          str(a.get("District", "") or ""),
+                "production":        str(a.get("Production", "") or ""),
+            }),
+        })
+    if dropped:
+        print(f"  ardf: dropped {dropped} rows with missing coordinates")
+
+    df = pd.DataFrame(rows)
+    df = sanitize_strings(df)
+    df, invalid = validate_and_clean(df)
+    if invalid:
+        print(f"  ardf: dropped {invalid} rows with invalid coordinates")
+    return df
+
+
+_CGNDB_TERRITORIES = {
+    "yt": "https://ftp.maps.canada.ca/pub/nrcan_rncan/vector/geobase_cgn_toponyme/prov_csv_eng/cgn_yt_csv_eng.zip",
+    "nt": "https://ftp.maps.canada.ca/pub/nrcan_rncan/vector/geobase_cgn_toponyme/prov_csv_eng/cgn_nt_csv_eng.zip",
+    "nu": "https://ftp.maps.canada.ca/pub/nrcan_rncan/vector/geobase_cgn_toponyme/prov_csv_eng/cgn_nu_csv_eng.zip",
+}
+
+
+def ingest_cgndb(path: str) -> pd.DataFrame:
+    """NRCan Canadian Geographical Names Database — populated places in YT, NT, and NU.
+
+    Downloads territory zip files and caches merged CSV to path.
+    Source: https://natural-resources.canada.ca/earth-sciences/geography/geographical-names/
+    """
+    os.makedirs(DATA_CACHE, exist_ok=True)
+    if not os.path.exists(path):
+        print("  Downloading CGNDB territory files from NRCan FTP...")
+        frames = []
+        for code, url in _CGNDB_TERRITORIES.items():
+            zip_path = os.path.join(DATA_CACHE, f"cgn_{code}_csv_eng.zip")
+            print(f"  Fetching {code.upper()}...")
+            urllib.request.urlretrieve(url, zip_path)
+            with zipfile.ZipFile(zip_path) as zf:
+                csv_name = next(n for n in zf.namelist() if n.endswith(".csv"))
+                with zf.open(csv_name) as f:
+                    df = pd.read_csv(f, encoding="utf-8-sig", dtype=str)
+            frames.append(df)
+        merged = pd.concat(frames, ignore_index=True)
+        merged.to_csv(path, index=False, encoding="utf-8")
+        print(f"SHA256 cgndb_territories.csv: {sha256_file(path)}")
+
+    df = pd.read_csv(path, dtype=str)
+    df = df[df["Generic Category"] == "Populated Place"].copy()
+    df = sanitize_strings(df)
+    df = df.rename(columns={"Latitude": "lat", "Longitude": "lon"})
+    df, dropped = validate_and_clean(df)
+    if dropped:
+        print(f"  cgndb: dropped {dropped} rows with invalid coordinates")
+
+    return pd.DataFrame({
+        "id":            _uuids(len(df)),
+        "lat":           df["lat"].astype(float),
+        "lon":           df["lon"].astype(float),
+        "centroid_lat":  df["lat"].astype(float),
+        "centroid_lon":  df["lon"].astype(float),
+        "location_name": df["Geographical Name"].fillna("").astype(str),
+        "country":       "CA",
+        "state_province":df["Province - Territory"].fillna("").astype(str),
+        "sector":        "Community",
+        "asset_type":    df["Generic Term"].fillna("settlement").str.lower().astype(str),
+        "ownership_type":"Public",
+        "operator_owner":"",
+        "data_source":   "NRCAN_CGNDB",
+        "source_id":     df["CGNDB ID"].fillna("").astype(str),
+        "source_url":    "https://natural-resources.canada.ca/earth-sciences/geography/geographical-names/",
+        "data_quality":  "High",
+        "year_of_data":  2026,
+        "attributes":    df.apply(lambda r: json.dumps({
+            "generic_term":  r.get("Generic Term", ""),
+            "concise_code":  r.get("Concise Code", ""),
+            "decision_date": r.get("Decision Date", ""),
+        }), axis=1),
+    })
+
+
+AK_AG_CSV = os.path.join(GIS_DIR, "AK_Agricultural_Viability.csv")
+
 PIPELINE: list[tuple[str, str, callable, tuple]] = [
     ("Airports.csv",                                  os.path.join(GIS_DIR,     "Airports.csv"),                                          ingest_airports,    ()),
     ("Well_Surface_Hole_Location.csv",                os.path.join(GIS_DIR,     "Well_Surface_Hole_Location.csv"),                        ingest_wells,       ()),
@@ -256,6 +459,9 @@ PIPELINE: list[tuple[str, str, callable, tuple]] = [
     ("table-Processing-facilities.csv",               os.path.join(GIS_DIR,     "table-Processing-facilities.csv"),                       ingest_nrcan_csv,   ("NRCAN_PROCESSING", "processing facility")),
     ("table-Advanced-projects.csv",                   os.path.join(SUPPORT_DIR, "table-Advanced-projects.csv"),                           ingest_nrcan_csv,   ("NRCAN_ADVANCED", "mining project")),
     ("table-ArcGIS-Online-layers.csv",                os.path.join(GIS_DIR,     "table-ArcGIS-Online-layers.csv"),                        ingest_energy_layers, ()),
+    ("AK_Agricultural_Viability.csv",                 AK_AG_CSV,        ingest_ak_ag_viability, ()),
+    ("ardf_alaska.json",                              ARDF_CACHE,       ingest_ardf,             ()),
+    ("cgndb_territories.csv",                         CGNDB_CACHE,      ingest_cgndb,            ()),
 ]
 
 
@@ -264,7 +470,7 @@ def run_ingest(db_path: str = DEFAULT_DB) -> None:
     for name, path, _, _ in PIPELINE:
         if os.path.exists(path):
             print(f"SHA256 {name}: {sha256_file(path)}")
-        else:
+        elif not path.startswith(DATA_CACHE):
             print(f"MISSING {name}: {path}")
 
     con = duckdb.connect(db_path)
@@ -272,9 +478,10 @@ def run_ingest(db_path: str = DEFAULT_DB) -> None:
     total = 0
 
     for name, path, fn, args in PIPELINE:
-        if not os.path.exists(path):
+        is_cached = path.startswith(DATA_CACHE)
+        if not os.path.exists(path) and not is_cached:
             continue
-        label = name.replace(".csv", "")
+        label = name.replace(".csv", "").replace(".json", "")
         print(f"\nIngesting {label}...")
         df = fn(path, *args)
         if len(df) == 0:

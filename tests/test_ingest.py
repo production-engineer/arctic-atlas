@@ -224,7 +224,42 @@ def test_no_null_lat_lon(db):
 
 
 # ---------------------------------------------------------------------------
-# 10. SHA256 logged for each source file
+# 10. Alaska agricultural viability loaded
+# ---------------------------------------------------------------------------
+def test_ak_ag_viability_loaded(db):
+    count = db.execute(
+        "SELECT COUNT(*) FROM sites WHERE data_source = 'AK_AG_VIABILITY'"
+    ).fetchone()[0]
+    assert count >= 28, f"Expected ≥28 AK agricultural zones, got {count}"
+
+    # Every row must have a non-null viability score in attributes
+    bad_attrs = db.execute(
+        "SELECT COUNT(*) FROM sites WHERE data_source = 'AK_AG_VIABILITY' "
+        "AND (attributes IS NULL OR attributes = '{}')"
+    ).fetchone()[0]
+    assert bad_attrs == 0, f"{bad_attrs} AK_AG_VIABILITY rows have empty attributes"
+
+    # Sector must be Agriculture
+    bad_sector = db.execute(
+        "SELECT COUNT(*) FROM sites WHERE data_source = 'AK_AG_VIABILITY' "
+        "AND sector != 'Agriculture'"
+    ).fetchone()[0]
+    assert bad_sector == 0, f"{bad_sector} rows have wrong sector"
+
+    # Mat-Su (02170) should be present and have high vegetable score
+    matsu = db.execute(
+        "SELECT attributes FROM sites WHERE data_source = 'AK_AG_VIABILITY' "
+        "AND source_id = '02170'"
+    ).fetchone()
+    assert matsu is not None, "Matanuska-Susitna borough missing from AK_AG_VIABILITY"
+    import json
+    attrs = json.loads(matsu[0])
+    assert int(attrs.get("score_vegetables", 0)) >= 4, \
+        f"Mat-Su vegetable score should be ≥4, got {attrs.get('score_vegetables')}"
+
+
+# ---------------------------------------------------------------------------
+# 11. SHA256 logged for each source file
 # ---------------------------------------------------------------------------
 def test_sha256_logged(db_with_stdout):
     _, stdout = db_with_stdout
@@ -233,3 +268,30 @@ def test_sha256_logged(db_with_stdout):
                     "table-Mines", "table-Processing", "table-Advanced"]
     for name in source_names:
         assert name in stdout, f"Expected '{name}' mentioned in ingest output"
+
+
+# ---------------------------------------------------------------------------
+# 12. USGS ARDF Alaska mines loaded
+# ---------------------------------------------------------------------------
+def test_ardf_loaded(db):
+    count = db.execute(
+        "SELECT COUNT(*) FROM sites WHERE data_source = 'USGS_ARDF'"
+    ).fetchone()[0]
+    assert count >= 7_000, f"Expected ≥7,000 ARDF mineral sites, got {count}"
+
+
+# ---------------------------------------------------------------------------
+# 13. Canadian communities (CGNDB) loaded
+# ---------------------------------------------------------------------------
+def test_cgndb_loaded(db):
+    count = db.execute(
+        "SELECT COUNT(*) FROM sites WHERE data_source = 'NRCAN_CGNDB'"
+    ).fetchone()[0]
+    assert count >= 300, f"Expected ≥300 Canadian communities, got {count}"
+
+    territories = db.execute(
+        "SELECT DISTINCT state_province FROM sites WHERE data_source = 'NRCAN_CGNDB'"
+    ).fetchall()
+    territory_names = {r[0] for r in territories}
+    for expected in ("Yukon", "Northwest Territories", "Nunavut"):
+        assert expected in territory_names, f"{expected} missing from CGNDB records"
