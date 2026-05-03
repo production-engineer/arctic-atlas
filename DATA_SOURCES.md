@@ -42,6 +42,16 @@ AI-generated coordinates are not permitted. Private datasets must be labeled
 - **Records:** 193 advanced mining/exploration projects
 - **Quality:** High
 
+### AK_AG_VIABILITY — Alaska Borough Agricultural Viability
+- **File:** `GIS FILES/AK_Agricultural_Viability.csv`
+- **Primary URL (geography):** https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/
+- **Supporting URLs:** https://www.uaf.edu/ces/ · https://www.nass.usda.gov/Statistics_by_State/Alaska/ · https://www.ncei.noaa.gov/products/land-based-station/us-climate-normals
+- **Agency:** US Census Bureau (borough boundaries) + UAF Cooperative Extension + USDA NASS Alaska + NOAA
+- **Records:** 30 (one per Alaska borough/census area)
+- **Quality:** Low — centroid coordinates are Census Bureau-derived (high quality), but the viability scores (0–5) are synthesized from published literature and NOAA climate normals rather than directly downloaded from a single dataset.
+- **Attributes:** `gdd_base50f` (growing degree days, base 50°F), `population` (ACS 2022 5-yr), `score_grains`, `score_vegetables`, `score_livestock`, `score_mariculture`, `score_greenhouse` (0=not viable → 5=excellent)
+- **Notes:** Generated alongside the Alaska Agricultural Viability Map (alaska-ag-map/). Scores reflect the synthesis in that project — update both when methodology changes.
+
 ## Adding New Sources
 
 1. Verify the data has a public URL or documented private provenance.
